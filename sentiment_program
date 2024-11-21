@@ -1,0 +1,266 @@
+# Define custom colors
+colors = ['red', 'green', 'blue', 'gray']
+
+# Create subplots
+fig, axs = plt.subplots(1, 2, figsize=(16, 6))
+
+# Plotting pie chart for sentiment distribution with custom colors
+axs[0].pie(df['Sentiment'].value_counts(), labels=df['Sentiment'].unique(), autopct='%1.1f%%',
+            startangle=90, wedgeprops={'linewidth': 0.5}, textprops={'fontsize': 12},
+            explode=[0.1, 0.1, 0.1, 0.1], colors=colors, shadow=True)
+axs[0].set_title('Sentiment Distribution - Pie Chart')
+
+# Plotting bar plot for sentiment distribution
+axs[1] = df['Sentiment'].value_counts().plot(kind='bar', color=colors, ax=axs[1])
+axs[1].set_title('Sentiment Distribution - Bar Plot')
+axs[1].set_xlabel('Sentiment')
+axs[1].set_ylabel('Count')
+axs[1].tick_params(axis='x', rotation=45)
+axs[1].grid(axis='y', linestyle='--', alpha=0.7)
+
+# Add text on top of each bar in the bar plot
+for p in axs[1].patches:
+    axs[1].annotate(str(p.get_height()), (p.get_x() + p.get_width() / 2., p.get_height()), ha='center', va='center', xytext=(0, 5), textcoords='offset points')
+
+plt.tight_layout()
+plt.show()
+
+# Create cross-tabulation table in plot
+plt.figure(figsize=(10, 6))
+count_table = pd.crosstab(index=df['Branch'], columns=df['Sentiment'])
+sns.heatmap(count_table, cmap='YlOrRd', annot=True, fmt='d',linewidths=0.5, linecolor='black')
+plt.title('Sentiment Distribution by Branch')
+plt.xlabel('Sentiment')
+plt.ylabel('Branch')
+plt.show()
+
+# Display minimum and maximum values for each sentiment for each branch
+for sentiment in count_table.columns:
+    min_branch = count_table[sentiment].idxmin()
+    max_branch = count_table[sentiment].idxmax()
+    min_val = count_table[sentiment].min()
+    max_val = count_table[sentiment].max()
+    print(f"Sentiment '{sentiment}':")
+    print(f"  Minimum value '{min_val}' at Branch '{min_branch}'")
+    print(f"  Maximum value '{max_val}' at Branch '{max_branch}'\n")
+
+# Convert branches to a single string
+branches_text = ' '.join(count_table.index)
+
+# Create word cloud
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate(branches_text)
+
+# Plot word cloud
+plt.figure(figsize=(10, 6))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.title('Word Cloud of Branches')
+plt.axis('off')
+plt.show()
+
+# Concatenate all tweets into a single string
+all_tweets_text = ' '.join(df['Tweet'])
+
+# Create word cloud
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate(all_tweets_text)
+
+# Plot word cloud
+plt.figure(figsize=(10, 6))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.title('Word Cloud of Tweets')
+plt.axis('off')
+plt.show()
+
+def filter_non_string(df, column):
+    """
+    Filter out rows with non-string values in the specified column.
+    Convert non-string values to strings.
+    """
+    df = df.dropna(subset=[column])
+    df[column] = df[column].astype(str)
+    return df
+
+def normalize_text(text):
+    """Convert text to lowercase to ensure consistency across the corpus."""
+    return text.lower()
+
+def remove_html_tags(text):
+    """Remove HTML tags from the text."""
+    return re.sub(r'<.*?>', '', text)
+
+def remove_urls(text):
+    """Remove URLs or hyperlinks from the text."""
+    return re.sub(r'http\S+|www\S+', '', text)
+
+def remove_numbers(text):
+    """Exclude numerical digits from the text."""
+    return re.sub(r'\d+', '', text)
+
+def remove_punctuation(text):
+    """Remove punctuation marks from the text."""
+    return text.translate(str.maketrans('', '', string.punctuation))
+
+def tokenize_text(text):
+    """Split the text into individual words or tokens."""
+    return word_tokenize(text)
+
+def remove_stopwords(tokens):
+    """Eliminate common stopwords from the tokenized text."""
+    stop_words = set(stopwords.words('english'))
+    return [word for word in tokens if word not in stop_words]
+
+import re
+
+def remove_emojis(text):
+    """Remove emojis from the text."""
+    if isinstance(text, str):
+        emoji_pattern = re.compile("["
+                                   u"\U0001F600-\U0001F64F"  # emoticons
+                                   u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                                   u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                                   u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                                   u"\U00002500-\U00002BEF"  # chinese char
+                                   u"\U00002702-\U000027B0"
+                                   u"\U00002702-\U000027B0"
+                                   u"\U000024C2-\U0001F251"
+                                   u"\U0001f926-\U0001f937"
+                                   u"\U00010000-\U0010ffff"
+                                   u"\u2640-\u2642"
+                                   u"\u2600-\u2B55"
+                                   u"\u200d"
+                                   u"\u23cf"
+                                   u"\u23e9"
+                                   u"\u231a"
+                                   u"\ufe0f"  # dingbats
+                                   u"\u3030"
+                                   "]+", flags=re.UNICODE)
+        return emoji_pattern.sub(r'', text)
+    else:
+        return text
+
+def vectorize_data(text_data):
+    # Join the tokenized text into strings
+    text_data_strings = [" ".join(tokens) for tokens in text_data]
+    # Initialize TfidfVectorizer
+    tfidf_vectorizer = TfidfVectorizer()
+    # Fit and transform the text data to generate TF-IDF vectors
+    tfidf_vectors = tfidf_vectorizer.fit_transform(text_data_strings)
+    return tfidf_vectors, tfidf_vectorizer
+
+
+def preprocess_text(df):
+    df = filter_non_string(df, 'Tweet')
+    df['Tweet'] = df['Tweet'].apply(normalize_text)
+    df['Tweet'] = df['Tweet'].apply(remove_html_tags)
+    df['Tweet'] = df['Tweet'].apply(remove_urls)
+    df['Tweet'] = df['Tweet'].apply(remove_numbers)
+    df['Tweet'] = df['Tweet'].apply(remove_punctuation)
+    df['Tweet'] = df['Tweet'].apply(tokenize_text)
+    df['Tweet'] = df['Tweet'].apply(remove_stopwords)
+    df['Tweet'] = df['Tweet'].apply(remove_emojis)
+    return df
+
+# Usage:
+df_processed = preprocess_text(df)
+
+# df_processed contains preprocessed text data
+# Convert list of words into a single string for each entry in 'Tweet' column
+df_processed['Tweet'] = df_processed['Tweet'].apply(lambda x: ' '.join(x))
+
+# Split data into features (X) and target (y)
+X = df_processed['Tweet']  # Features
+y = df_processed['Sentiment']  # Target
+
+# Split data into training and testing sets (80% training, 20% testing)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Print the shapes of the training and testing sets
+print("Shape of X_train:", X_train.shape)
+print("Shape of X_test:", X_test.shape)
+print("Shape of y_train:", y_train.shape)
+print("Shape of y_test:", y_test.shape)
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Convert text data to TF-IDF features
+vectorizer = TfidfVectorizer()
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Train Random Forest classifier
+rf_classifier = RandomForestClassifier(random_state=42)
+rf_classifier.fit(X_train_tfidf, y_train)
+
+# Predict on the testing data
+y_pred = rf_classifier.predict(X_test_tfidf)
+
+# Calculate accuracy
+accuracy = accuracy_score(y_test, y_pred)
+print("Test Accuracy:", accuracy)
+
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+# Create a classification report
+class_report = classification_report(y_test, y_pred)
+
+# Plot confusion matrix
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', cbar=False)
+plt.title('Confusion Matrix')
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.show()
+
+# Print classification report
+print("Classification Report:")
+print(class_report)
+
+# Print some actual vs predicted labels along with tweet text
+print("Actual vs Predicted Labels with Tweet Text:")
+for tweet, actual_label, predicted_label in zip(X_test[:10], y_test[:10], y_pred[:10]):
+    print("Tweet:", tweet)
+    print("Actual Label:", actual_label)
+    print("Predicted Label:", predicted_label)
+    print("-----------------------")
+
+import joblib
+
+# Save the trained model
+joblib.dump(rf_classifier, 'rf_model.pkl')
+
+# Load the saved model
+Tweet_Sentiment_Ai = joblib.load('rf_model.pkl')
+
+# Define a mapping between sentiment labels and emojis
+sentiment_emojis = {
+    'Positive': '😄',
+    'Negative': '😞',
+    'Neutral': '😐',
+    'Irrelevant': '🤷‍♂️'
+}
+
+# Example tweets
+example_tweets = [
+    "I just finished playing Borderlands and it was absolutely amazing! Can't wait for the next one!",
+    "I'm really disappointed with the latest Borderlands update. It ruined the game for me.",
+    "Haven't played Borderlands in a while. Need to catch up on the latest updates.",
+    "Just saw a funny cat video while searching for Borderlands gameplay. Cats always cheer me up!",
+    "You are a stupid"
+]
+
+
+# Transform example tweets into TF-IDF features
+
+example_tweets_tfidf = vectorizer.transform(example_tweets)
+
+# Predict sentiment for example tweets
+predictions = Tweet_Sentiment_Ai.predict(example_tweets_tfidf)
+
+# Print the predicted sentiment and corresponding emoji for each example tweet
+for tweet, prediction in zip(example_tweets, predictions):
+    sentiment = prediction
+    emoji = sentiment_emojis[sentiment]  # Get the emoji directly from the mapping without a default value
+    print("Tweet:", tweet)
+    print("Sentiment:", sentiment)
+    print("Emoji:", emoji)
+    print()
