@@ -146,6 +146,18 @@ def vectorize_data(text_data):
     tfidf_vectors = tfidf_vectorizer.fit_transform(text_data_strings)
     return tfidf_vectors, tfidf_vectorizer
 
+!pip install nltk
+import nltk
+
+def tokenize_text(text):
+    """Split the text into individual words or tokens."""
+    # Download 'punkt_tab' if it's not already downloaded
+    try:
+        nltk.data.find('tokenizers/punkt_tab')
+    except LookupError:
+        nltk.download('punkt_tab')
+    return nltk.word_tokenize(text)
+
 
 def preprocess_text(df):
     df = filter_non_string(df, 'Tweet')
